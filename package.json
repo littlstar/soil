@@ -15,8 +15,6 @@
    "src/soil.c",
    "src/image_dxt.c",
    "src/image_helper.c",
-   "src/stb_image_aug.c",
-   "src/original/stb_image-1.09.c",
-   "src/original/stb_image-1.16.c"
+   "src/stb_image_aug.c"
   ]
 }
