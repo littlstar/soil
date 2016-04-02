@@ -1,0 +1,22 @@
+{
+  "name": "SOIL",
+  "version": "0.0.1",
+  "repo": "littlstar/soil",
+  "description": "Simple OpenGL Image Library",
+  "keywords": ["soil", "opengl", "gl", "image"],
+  "src": [
+   "include/SOIL.h",
+   "include/image_dxt.h",
+   "include/image_helper.h",
+   "include/stb_image_aug.h",
+   "include/stbi_dds_aug.h",
+   "include/stbi_dds_aug_c.h",
+
+   "src/soil.c",
+   "src/image_dxt.c",
+   "src/image_helper.c",
+   "src/stb_image_aug.c",
+   "src/original/stb_image-1.09.c",
+   "src/original/stb_image-1.16.c"
+  ]
+}
