@@ -5,12 +5,12 @@
   "description": "Simple OpenGL Image Library",
   "keywords": ["soil", "opengl", "gl", "image"],
   "src": [
-   "include/SOIL.h",
-   "include/image_dxt.h",
-   "include/image_helper.h",
-   "include/stb_image_aug.h",
-   "include/stbi_dds_aug.h",
-   "include/stbi_dds_aug_c.h",
+   "include/SOIL/SOIL.h",
+   "include/SOIL/image_dxt.h",
+   "include/SOIL/image_helper.h",
+   "include/SOIL/stb_image_aug.h",
+   "include/SOIL/stbi_dds_aug.h",
+   "include/SOIL/stbi_dds_aug_c.h",
 
    "src/soil.c",
    "src/image_dxt.c",
