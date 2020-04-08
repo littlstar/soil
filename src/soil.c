@@ -15,7 +15,12 @@
 
 #define SOIL_CHECK_FOR_GL_ERRORS 0
 
-#ifdef WIN32
+/*
+	Karim: Corrected below to _WIN32 as preprocessor
+	symbol was missing the leading underscore.
+*/
+
+#ifdef _WIN32
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
 	#include <wingdi.h>
