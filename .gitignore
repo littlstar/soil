@@ -62,3 +62,12 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 
+# Added by KarimTakieddine (https://github.com/KarimTakieddine)
+# to allow building of a standalone VS solution.
+
+*.idb
+*.pdb
+*.suo
+*.user
+*.log
+*.tlog
