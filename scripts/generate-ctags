@@ -1,0 +1,18 @@
+#!/bin/bash
+CTAGS=${CTAGS:-$(which ctags)}
+declare -a FLAGS=(
+  --languages=c
+  --langmap=objectivec:.h.c
+)
+
+if [ -z $CTAGS ]; then
+  echo >&2 "Error: Couldn't find ctags in path."
+  exit 1
+fi
+
+cd src
+$CTAGS ${FLAGS[@]}
+
+cd ../extras
+$CTAGS ${FLAGS[@]}
+exit $?

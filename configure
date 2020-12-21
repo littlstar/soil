@@ -1,0 +1,595 @@
+#!/bin/bash
+
+shopt -s nocasematch
+
+declare OS="$(uname)"
+declare CWD="$(pwd)"
+declare -i DEBUG=0
+declare SED_REGEX_FLAG="-r"
+
+## output dot width
+declare -i DOTWIDTH=50
+
+## Library name
+declare LIBRARY_NAME="SOIL"
+
+## Library version
+function semver() {
+  cat clib.json |        \
+    grep '"version":' |  \
+    tr -d '"version":' | \
+    tr -d ',' |          \
+    tr -d '[:space:]' |  \
+    tr '.' '\t' |        \
+    eval $(printf "awk '{print $%d}'" $1) |   \
+    tr -d '[:space:]'
+  return $?
+}
+
+declare -i VERSION_MAJOR=$(semver 1)
+declare -i VERSION_MINOR=$(semver 2)
+declare -i VERSION_PATCH=$(semver 3)
+declare -i VERSION_REVISION=1
+
+## Script name
+declare SELF="$(basename $0)"
+
+## Project version
+if test -f version; then
+  declare PROJECT_VERSION="$(sh ./version)"
+elif test -f scripts/version; then
+  declare PROJECT_VERSION="$(sh ./scripts/version)"
+else
+  declare PROJECT_VERSION="0.0.0"
+fi
+
+## Required system commands
+declare -a COMMAND_DEPENDENCIES=(
+  ar cc ln rm pwd date
+  uname mkdir strip make
+  pkg-config
+  clib
+)
+
+## Optional user commands
+declare -a OPTIONAL_COMMAND_DEPENDENCIES=()
+
+## Required system libraries
+declare -a LIBRARY_DEPENDENCIES=()
+
+## Required system frameworks on macos
+declare -a LIBRARY_FRAMEWORK_DEPENDENCIES=()
+
+## Optional system libraries
+declare -a OPTIONAL_LIBRARY_DEPENDENCIES=()
+
+## Source dependency files
+declare -a DEPS=(
+)
+
+## Source files
+declare -a SRC=(
+  $(ls *.c 2>/dev/null)
+  $(ls src/*.c 2>/dev/null)
+)
+
+## Required system headers
+declare -a HEADER_DEPENDENCIES=(
+  'math.h'  'errno.h' 'stdio.h' 'stdlib.h' 'string.h'
+)
+
+case $OS in
+  linux)
+    HEADER_DEPENDENCIES+=()
+    LIBRARY_DEPENDENCIES+=('m')
+    LIBRARY_DEPENDENCIES+=('GL')
+    ;;
+
+  darwin)
+    HEADER_DEPENDENCIES+=('TargetConditionals.h')
+    LIBRARY_FRAMEWORK_DEPENDENCIES+=('Foundation')
+    LIBRARY_FRAMEWORK_DEPENDENCIES+=('OpenGL')
+    SED_REGEX_FLAG="-E"
+    ;;
+esac
+
+## Flags passed to this script
+declare CONFIGURE_FLAGS=""
+
+## Configurable environment variables
+declare CC="${CC:-$(which cc)}"
+declare PREFIX="${PREFIX:-/usr/local}"
+declare INCLUDEDIR="${INCLUDEDIR:-$PREFIX/include}"
+declare LIBDIR="${LIBDIR:-$PREFIX/lib}"
+declare MANDIR="${MANDIR:-$PREFIX/man}"
+declare BUILD="$CWD/build"
+declare TMP="$CWD/tmp" ## can be overloaded in `Makefile`
+
+## Template variables map with the following stride:
+## <key, value, description>
+declare -a TEMPLATE_VARS=(
+  OS "Operating System"
+  SRC "List of source files"
+  TMP "Temporary directory for intermediate files"
+  DEPS "List of external source dependency files"
+  BUILD "The build directory where all compiled objects and libaries are output to"
+  PREFIX "Default installation prefix"
+  CFLAGS "User CFLAGS"
+  LDFLAGS "User LDFLAGS"
+  LIBRARY_NAME "Library name"
+  VERSION_MAJOR "The major version of the library"
+  VERSION_MINOR "The minor version of the library"
+  VERSION_PATCH "The patch version of the library"
+  VERSION_REVISION "The revision version of the library"
+)
+
+##
+# White space trim helper
+function trim {
+  echo -n "$@" | sed "$SED_REGEX_FLAG" 's/^\s*(\S+(\s+\S+)*)\s*$/\1/'
+  return $?
+}
+
+##
+# Appends flag with surrounding spaces
+# to the CFLAGS environment variable
+function cflag {
+  CFLAGS+=" $(trim "$@")"
+}
+
+##
+# Appends flag with surrounding spaces
+# to the LDFLAGS environment variable
+function ldflag {
+  LDFLAGS+=" $(trim "$@")"
+}
+
+##
+# Appends source file to SRC array
+function src {
+  SRC+=($@)
+}
+
+## Gets or sets a template var
+function var {
+  let local i=0
+  local key=$1
+  local value=$2
+  for (( i = 0; i < ${#TEMPLATE_VARS[@]}; i += 2 )); do
+    local name=${TEMPLATE_VARS[$i]}
+    if [ $name = $key ]; then
+      if (( 2 == $# )); then
+        eval "$name=$value"
+        info "$name = $value"
+      else
+        echo ${!name}
+      fi
+      return 0
+    fi
+  done
+  return 1
+}
+
+##
+# Outputs prefixed info to stdout
+function info {
+  printf "%s: %s" $SELF "$@"
+  echo
+  return 0
+}
+
+##
+# Oututs ok and returns a 0 status code
+function ok {
+  info "ok" && true && return $?
+}
+
+##
+# Outputs a message to stderr
+# and exits with status 1 immediately
+function fatal {
+  info "fatal: \"$*\"" >&2
+  exit 1
+}
+
+##
+# Outputs a warning message to stderr
+function warn {
+  info "warn: \"$*\"" >&2
+  return 0
+}
+
+##
+# Outputs command help
+function usage {
+  cat <<HELP
+usage: $SELF [-hV]
+options:
+  --help              Print this message
+  --debug             Compile with debug output enabled
+  --prefix=PREFIX     Install prefix directory (default: ${PREFIX})"
+  --includedir=DIR    Header directory (default: ${INCLUDEDIR})"
+  --libdir=DIR        Library directory (default: ${LIBDIR})"
+  --mandir=DIR        Man page directory (default: ${MANDIR})"
+  --target=NAME       Target library name (default: ${LIBRARY_NAME})"
+
+HELP
+  return 0
+}
+
+##
+# Just print yes
+function yes {
+  printf " yes"
+  return 0
+}
+
+##
+# Just print no
+function no {
+  printf " no"
+  return 0
+}
+
+##
+# Print dots (...)
+function dots {
+  let local count=${1:-20}
+  local i=0
+  for (( i = 0; i < count; ++i )); do
+    printf "."
+  done
+  return 0
+}
+
+function check_posix_memalign {
+  local function_name='posix_memalign'
+  local headers='stdlib.h assert.h'
+  local program="$(cat <<-SRC
+  int main() {
+    void *ptr = 0;
+    assert(posix_memalign(&ptr, 8, 32));
+    return 0;
+  }
+SRC
+)"
+  check_c_program "$function_name" "$headers" "$program"
+  return $?
+}
+
+function check_memalign {
+  local function_name='memalign'
+  local headers='stdlib.h malloc.h assert.h'
+  local program="$(cat <<-SRC
+  int main() {
+    void *ptr = memalign(8, 32);
+    assert(ptr);
+    return 0;
+  }
+SRC
+)"
+  check_c_program "$function_name" "$headers" "$program"
+  return $?
+}
+
+function check_c_program {
+  let local rc=0
+  local function_name="$1"
+  declare -a local headers=($2)
+  local program="$3"
+  printf "Checking for $function_name"
+  dots $(expr $DOTWIDTH - ${#function_name} + 1)
+  {
+    for header in "${headers[@]}"; do
+      echo "#include <$header>"
+    done
+    echo $program
+  } | ${CC} -o /dev/null -xc - > /dev/null 2>&1
+  if (( $? != 0 )); then
+    no; rc=1
+  else
+    yes; rc=0
+  fi
+  echo
+  return $rc
+}
+
+##
+# Check for the existence of a library
+# with human readable output
+function check_library {
+  let local rc=0
+  local lib="$1"
+  if [ -z "$lib" ]; then return 1; fi
+  printf "Checking for lib$lib " && dots $(expr $DOTWIDTH - ${#lib} - 3)
+  echo 'int main (void) { return (0); }' | \
+    ${CC} -o /dev/null -l${1} -xc - > /dev/null 2>&1
+  if (( $? != 0 )); then
+    no; rc=1
+  else
+    yes; rc=0
+  fi
+  echo
+  return $rc
+}
+
+##
+# Check for the existence of a framework
+# with human readable output
+function check_framework {
+  let local rc=0
+  local framework="$1"
+  if [ -z "$framework" ]; then return 1; fi
+  printf "Checking for framework $framework " && dots $(expr $DOTWIDTH - ${#framework} - 10)
+  echo 'int main (void) { return (0); }' | \
+    ${CC} -o /dev/null -framework $framework -xc - > /dev/null 2>&1
+  if (( $? != 0 )); then
+    no; rc=1
+  else
+    yes; rc=0
+  fi
+  echo
+  return $rc
+}
+
+##
+# Check if a dependency command exists with
+# human readable output
+function check_command {
+  let local rc=0
+  local cmd="$1"
+  if [ -z $cmd ]; then return 1; fi
+  printf "Checking for $cmd " && dots $(expr $DOTWIDTH - ${#cmd} )
+  if [ -z $(which $cmd) ]; then
+    no; rc=1
+  else
+    yes; rc=0
+  fi
+  echo
+  return $rc
+}
+
+##
+# Check for the existence of a header file
+# with human readable output
+function check_header {
+  let local rc=0
+  local header="$1"
+  if [ -z "$header" ]; then return 1; fi
+  printf "Checking for $header " && dots $(expr $DOTWIDTH - ${#header})
+  {
+    echo "#include <$header>"
+    echo "int main (void) { return (0); }"
+  } | ${CC} -o /dev/null -xc - > /dev/null 2>&1
+  if (( $? != 0 )); then
+    no; rc=1
+  else
+    yes; rc=0
+  fi
+  echo
+  return $rc
+}
+
+##
+# Generates a output from a named template
+function template {
+  local input="$1"
+  local output
+  local buffer
+  local i=0
+
+  if ! [[ "$input" =~ ".in" ]]; then
+    input+=".in"
+  fi
+
+  if test -f "$input"; then
+    output="${input/.in/}"
+
+    ## clean up existing output file
+    if test -f "$output"; then
+      rm -f "$output";
+    fi
+
+    info "Generating file \`$output'"
+    cmd="$(echo "sed -e $(eval echo $(                      \
+      for (( i = 0; i < ${#TEMPLATE_VARS[@]}; i += 2 )); do \
+        local name="${TEMPLATE_VARS[$i]}";                  \
+        local value;  eval 'value=${'$name'[@]}';           \
+        local values="${value[@]}";                         \
+        local escaped="${values//\//\\/}";                  \
+        echo "\-e \'\"s/@$name@/$escaped/g\"\'";            \
+      done)) "$input" > "$output"")"
+
+    ## exec
+    eval $cmd
+  fi
+}
+
+##
+# Configures library build files
+function configure {
+  let local i=0
+  info "$(uname -a)"
+  info "Configuring lib$LIBRARY_NAME-($PROJECT_VERSION) for $OS"
+
+  case "$OS" in
+    Linux|Unix|GNU|*BSD|Darwin)
+      ;;
+
+    Win32) ;;
+    *) fatal "Unsupported operating system."
+  esac
+
+  ## gcc compiler flags
+  cflag '-std=c99'
+  cflag '-I deps'
+  cflag '-I include'
+  cflag '-Wall'
+  cflag '-O2'
+  cflag '-fvisibility=hidden'
+  cflag '-fPIC'
+
+  ## we add this to stop the mising headering file error: 'libuv(pthread-barrier.h)'
+  ## see: https://github.com/libuv/libuv/issues/891#issuecomment-222443086
+  cflag '-D_POSIX_C_SOURCE=200112'
+
+  ## gcc/ld linker flags
+  for lib in "${LIBRARY_DEPENDENCIES[@]}"; do
+    ldflag "-l $lib"
+  done
+
+  ## gcc/ld framework (macOS) flags
+  for framework in "${LIBRARY_FRAMEWORK_DEPENDENCIES[@]}"; do
+    ldflag "-framework $framework"
+  done
+
+  if (( ${#COMMAND_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking required command dependencies"
+    for (( i = 0; i < ${#COMMAND_DEPENDENCIES[@]}; i++ )); do
+      local cmd="${COMMAND_DEPENDENCIES[$i]}"
+      if ! check_command $cmd; then
+        fatal "Missing required command $cmd"
+      fi
+    done
+  fi
+
+  if (( ${#HEADER_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking required header dependencies"
+    for (( i = 0; i < ${#HEADER_DEPENDENCIES[@]}; i++ )); do
+      local header="${HEADER_DEPENDENCIES[$i]}"
+      if ! check_header $header; then
+        fatal "Missing required header $header"
+      fi
+    done
+  fi
+
+  if (( ${#LIBRARY_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking required library dependencies"
+    for (( i = 0; i < ${#LIBRARY_DEPENDENCIES[@]}; i++ )); do
+      local lib="${LIBRARY_DEPENDENCIES[$i]}"
+      if ! check_library $lib; then
+        fatal "Missing required library $lib"
+      fi
+    done
+  fi
+
+  if (( ${#LIBRARY_FRAMEWORK_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking required framework dependencies"
+    for (( i = 0; i < ${#LIBRARY_FRAMEWORK_DEPENDENCIES[@]}; i++ )); do
+      local framework="${LIBRARY_FRAMEWORK_DEPENDENCIES[$i]}"
+      if ! check_framework $framework; then
+        fatal "Missing required framework $framework"
+      fi
+    done
+  fi
+
+  if (( ${#OPTIONAL_COMMAND_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking optional command dependencies"
+    for (( i = 0; i < ${#OPTIONAL_COMMAND_DEPENDENCIES[@]}; i++ )); do
+      local cmd="${OPTIONAL_COMMAND_DEPENDENCIES[$i]}"
+      check_command $cmd
+    done
+  fi
+
+  if (( ${#OPTIONAL_LIBRARY_DEPENDENCIES[@]} > 0 )); then
+    echo
+    info "Checking optional library dependencies"
+    for (( i = 0; i < ${#OPTIONAL_LIBRARY_DEPENDENCIES[@]}; i++ )); do
+      local lib="${OPTIONAL_LIBRARY_DEPENDENCIES[$i]}"
+      if ! check_library $lib; then
+        warn "Missing optional library $lib"
+      fi
+    done
+  fi
+
+  echo
+  info "Checking for required C functions"
+  if check_posix_memalign; then
+    cflag '-D SOIL_HAVE_POSIX_MEMALIGN'
+  else
+    warn "Missing posix_memalign()"
+  fi
+
+  if check_memalign; then
+    cflag '-D SOIL_HAVE_MEMALIGN'
+  else
+    warn "Missing memalign()"
+  fi
+
+  info "Checking for deprecated system headers"
+  if check_header 'malloc.h'; then
+    cflag '-D SOIL_HAVE_MALLOC_H'
+  elif check_header 'malloc/malloc.h'; then
+    cflag '-D SOIL_HAVE_MALLOC_MALLOC_H'
+  fi
+
+  echo
+  info "CFLAGS: $CFLAGS"
+  info "LDFLAGS: $LDFLAGS"
+  info "Generating template files"
+  ## TODO(werle) - Check nested *.in with "find . -name *.in" ?
+  for file in *.in; do
+    template $file
+  done
+  return 0
+}
+
+##
+# Scripts entry
+function main {
+  local arg value
+
+  for arg in "$@"; do
+    ## parse opt value
+    case "$arg" in
+      *=false) value=0 ;;
+      *=true) value=1 ;;
+      *=?*) value="$(expr -- "$arg" : '[^=]*=\(.*\)')" ;;
+      *=) value= ;;
+      *) value=1 ;;
+    esac
+
+    case $arg in
+      -h|--help) usage && return 0;;
+
+      ## Output directories
+      --includedir=?*) INCLUDEDIR="$value" ;;
+      --prefix=?*) PREFIX="$value" ;;
+      --libdir=?*) LIBDIR="$value" ;;
+      --mandir=?*) MANDIR="$value" ;;
+      --target=?*) LIBRARY_NAME="$value" ;;
+      --build=?*) BUILD="$value" ;;
+
+      ## debug configuration
+      --debug|--debug=?*) DEBUG=$value ;;
+    esac
+  done
+
+  CONFIGURE_FLAGS+="--includedir=$INCLUDEDIR "
+  CONFIGURE_FLAGS+="--prefix=$PREFIX "
+  CONFIGURE_FLAGS+="--libdir=$LIBDIR "
+  CONFIGURE_FLAGS+="--mandir=$MANDIR "
+  CONFIGURE_FLAGS+="--target=$LIBRARY_NAME "
+  CONFIGURE_FLAGS+="--build=$BUILD "
+
+  if (( DEBUG )); then
+    CONFIGURE_FLAGS+="--debug=true"
+    cflag '-D SOIL_DEBUG'
+    cflag '-g'
+  else
+    CONFIGURE_FLAGS+="--debug=false"
+  fi
+
+  info "flags: $CONFIGURE_FLAGS"
+  configure
+
+  return $?
+}
+
+## init
+(main "$@") && exit $?

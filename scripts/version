@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# borrowed from ffmpeg
+
+# check for git short hash
+if ! test "$revision"; then
+    if (cd "$1" && grep git RELEASE 2> /dev/null >/dev/null) ; then
+        revision=$(cd "$1" && git describe --tags --match N 2> /dev/null)
+    else
+        revision=$(cd "$1" && git describe --tags --always 2> /dev/null)
+    fi
+fi
+
+# Shallow Git clones (--depth) do not have the N tag:
+# use 'git-YYYY-MM-DD-hhhhhhh'.
+test "$revision" || revision=$(cd "$1" &&
+  git log -1 --pretty=format:"git-%cd-%h" --date=short 2> /dev/null)
+
+# Snapshots from gitweb are in a directory called libmerkle-hhhhhhh or
+# libmerkle-HEAD-hhhhhhh.
+if [ -z "$revision" ]; then
+  srcdir=$(cd "$1" && pwd)
+  case "$srcdir" in
+    */libmerkle-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+      git_hash="${srcdir##*-}";;
+    */libmerkle-HEAD-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+      git_hash="${srcdir##*-}";;
+  esac
+fi
+
+# no revision number found
+test "$revision" || revision=$(cd "$1" && cat RELEASE 2> /dev/null)
+
+# Append the Git hash if we have one
+test "$revision" && test "$git_hash" && revision="$revision-$git_hash"
+
+echo $revision

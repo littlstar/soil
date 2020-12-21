@@ -3627,5 +3627,5 @@ int stbi_write_tga(char const *filename, int x, int y, int comp, void *data)
 
 //	add in my DDS loading support
 #ifndef STBI_NO_DDS
-#include "SOIL/stbi_DDS_aug_c.h"
+#include "SOIL/stbi_dds_aug_c.h"
 #endif

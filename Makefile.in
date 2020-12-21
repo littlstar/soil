@@ -1,0 +1,230 @@
+## Project settings
+LIBRARY_NAME ?= @LIBRARY_NAME@
+LIBRARY_VERSION_MAJOR = @VERSION_MAJOR@
+LIBRARY_VERSION_MINOR = @VERSION_MINOR@
+LIBRARY_VERSION_PATCH = @VERSION_PATCH@
+LIBRARY_VERSION_REVISION = @VERSION_REVISION@
+LIBRARY_MAINTAINER := "joseph.werle@gmail.com"
+LIBRARY_WEBSITE := "https://github.com/littlstar/$(LIBRARY_NAME)"
+LIBRARY_DATE_COMPILED := $(shell date)
+
+## Target static library
+TARGET_STATIC := lib$(LIBRARY_NAME).a
+TARGET_SOLIB = lib$(LIBRARY_NAME).so.$(LIBRARY_VERSION_MAJOR)
+TARGET_DYLIB = lib$(LIBRARY_NAME).$(LIBRARY_VERSION_MAJOR).$(LIBRARY_VERSION_MINOR).dylib
+TARGET_SO = lib$(LIBRARY_NAME).so
+
+TEMP_DIRECTORY ?= @TMP@
+
+## Build configuration
+BUILD_DIRECTORY ?= @BUILD@
+BUILD_INCLUDE ?= $(BUILD_DIRECTORY)/include
+BUILD_LIB ?= $(BUILD_DIRECTORY)/lib
+
+## Environment properties
+PREFIX ?= @PREFIX@
+CWD ?= $(shell pwd)
+OS ?= $(shell uname)
+SHELL := /bin/bash
+
+## Project command dependencies
+PKGCONFIG ?= pkg-config
+_MKDIR = mkdir -p
+MKDIR = mkdir -p
+STRIP = strip
+CLIB ?= clib
+CC ?= gcc
+RM = rm -rf
+CP = cp -rf
+LN = ln -sf
+
+## Source files
+SRC += @SRC@
+SRC += @DEPS@
+
+## Source headers
+HEADERS += $(wildcard $(CWD)/*.h)
+HEADERS += $(wildcard $(CWD)/include/*.h)
+HEADERS += $(wildcard $(CWD)/include/$(LIBRARY_NAME)/*.h)
+HEADERS += $(wildcard $(CWD)/include/$(LIBRARY_NAME)/*/*.h)
+HEADERS += $(wildcard $(CWD)/include/$(LIBRARY_NAME)/*/*/*.h)
+
+## Source objects
+OBJS := $(SRC:.c=.o)
+
+## Libary macro info
+CFLAGS += -D SOIL_NAME='"lib$(LIBRARY_NAME)"'
+CFLAGS += -D SOIL_DATE_COMPILED='"$(LIBRARY_DATE_COMPILED)"'
+CFLAGS += -D SOIL_VERSION_MAJOR='$(LIBRARY_VERSION_MAJOR)'
+CFLAGS += -D SOIL_VERSION_MINOR='$(LIBRARY_VERSION_MINOR)'
+CFLAGS += -D SOIL_VERSION_PATCH='$(LIBRARY_VERSION_PATCH)'
+CFLAGS += -D SOIL_VERSION_REVISION='$(LIBRARY_VERSION_REVISION)'
+CFLAGS += -D SOIL_VERSION="(        \
+	$(LIBRARY_VERSION_MAJOR) << 24 | \
+	$(LIBRARY_VERSION_MINOR) << 16 | \
+	$(LIBRARY_VERSION_PATCH) << 8  | \
+	$(LIBRARY_VERSION_REVISION)      \
+)"
+
+## Compiler flags
+CFLAGS += @CFLAGS@
+CFLAGS += -I $(BUILD_DIRECTORY)/include
+CFLAGS += $(shell $(PKGCONFIG) $(wildcard $(BUILD_LIB)/pkgconfig/*.pc) --cflags --static --libs 2>/dev/null)
+
+## Linker flags
+LDFLAGS += @LDFLAGS@
+ifeq ($(OS), Darwin)
+	LDFLAGS += -shared -lc -Wl,-install_name,$(TARGET_SO)
+else
+	LDFLAGS += -shared -Wl,-soname,$(TARGET_SO).$(LIBRARY_VERSION_MAJOR)
+endif
+
+## Macro to ensure build directory structure is in place
+define ENSURE_BUILD_DIRECTORY_STRUCTURE
+@if ! test -d $(BUILD_DIRECTORY); then                          \
+	printf " ";                                                   \
+	printf $(BRIEF_FORMAT) "MKDIR"                                \
+	" $(BUILD_DIRECTORY)/{include/$(LIBRARY_NAME),lib}"           \
+	| tr '\n' ' ' && echo;                                        \
+	$(_MKDIR) $(BUILD_DIRECTORY)/{include/$(LIBRARY_NAME),lib};   \
+fi
+endef
+
+## Brief commands
+BRIEFC += MKDIR
+BRIEFC += STRIP
+BRIEFC += CLIB
+BRIEFC += MAKE
+BRIEFC += RM
+BRIEFC += LN
+BRIEFC += AR
+BRIEFC += CC
+
+ifneq (1,$(NO_BRIEF))
+-include mk/brief.mk
+-include brief.mk
+endif
+
+## Builds everything
+build: $(BUILD_INCLUDE)/$(LIBRARY_NAME)
+build: $(OBJS)
+build: $(BUILD_LIB)/$(TARGET_STATIC)
+build: $(BUILD_LIB)/$(TARGET_SO)
+build: $(BUILD_LIB)/$(TARGET_SOLIB)
+ifeq ($(OS),Darwin)
+build: $(BUILD_LIB)/$(TARGET_DYLIB)
+endif
+
+## Compiles object files
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+
+## Builds static library
+.PHONY: $(TARGET_STATIC)
+$(TARGET_STATIC): $(BUILD_LIB)/$(TARGET_STATIC)
+$(BUILD_LIB)/$(TARGET_STATIC): $(OBJS)
+	$(ENSURE_BUILD_DIRECTORY_STRUCTURE)
+	$(AR) crs $@ $^
+
+## Copies header files
+.PHONY: $(BUILD_INCLUDE)/$(LIBRARY_NAME)
+$(BUILD_INCLUDE)/$(LIBRARY_NAME): $(HEADERS)
+	$(ENSURE_BUILD_DIRECTORY_STRUCTURE)
+	$(MKDIR) $@
+	cp $(HEADERS) $@
+
+## Builds a shared object
+.PHONY: $(TARGET_SO)
+$(TARGET_SO): $(BUILD_LIB)/$(TARGET_SO)
+$(BUILD_LIB)/$(TARGET_SO): $(OBJS)
+	$(ENSURE_BUILD_DIRECTORY_STRUCTURE)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(OBJS)
+ifneq ($(OS),Darwin)
+	$(STRIP) --strip-unneeded $@
+endif
+
+## Links shared object to name with major version
+.PHONY: $(TARGET_SOLIB)
+$(TARGET_SOLIB): $(BUILD_LIB)/$(TARGET_SOLIB)
+$(BUILD_LIB)/$(TARGET_SOLIB): $(BUILD_LIB)/$(TARGET_SO)
+	$(ENSURE_BUILD_DIRECTORY_STRUCTURE)
+	$(LN) $(shell basename $<) $@
+	$(LN) $(shell basename $<) $@.$(LIBRARY_VERSION_MINOR)
+	$(LN) $(shell basename $<) $@.$(LIBRARY_VERSION_MINOR).$(LIBRARY_VERSION_PATCH)
+	$(LN) $(shell basename $<) $@.$(LIBRARY_VERSION_MINOR).$(LIBRARY_VERSION_PATCH).$(LIBRARY_VERSION_REVISION)
+
+## Builds dynamic libary
+ifeq ($(OS),Darwin)
+.PHONY: $(TARGET_DYLIB)
+$(TARGET_DYLIB): $(BUILD_LIB)/$(TARGET_DYLIB)
+$(BUILD_LIB)/$(TARGET_DYLIB): $(OBJS)
+	$(ENSURE_BUILD_DIRECTORY_STRUCTURE)
+	$(CC) $(LDFLAGS) -dynamiclib -undefined suppress -flat_namespace $^ -o $@
+endif
+
+## Cleans project directory
+.PHONY: clean
+clean: test/clean
+clean: example/clean
+clean: CLEANABLE = $(OBJS)
+clean: CLEANABLE += $(BUILD_INCLUDE)/$(LIBRARY_NAME)
+clean: CLEANABLE += $(BUILD_LIB)/$(TARGET_STATIC)
+clean: CLEANABLE += $(BUILD_LIB)/$(TARGET_SOLIB)
+clean: CLEANABLE += $(wildcard $(BUILD_LIB)/$(TARGET_SOLIB).*)
+clean: CLEANABLE += $(BUILD_LIB)/$(TARGET_SO)
+ifeq ($(OS),Darwin)
+clean: CLEANABLE += $(BUILD_LIB)/$(TARGET_DYLIB)
+endif
+clean: BRIEF_ARGS = $(CLEANABLE)
+clean:
+	$(RM) $(CLEANABLE)
+
+.PHONY: distclean
+distclean: clean
+	$(RM) -rf Makefile $(TEMP_DIRECTORY) $(BUILD_DIRECTORY)
+
+## Cleans test directory
+.PHONY: test/clean
+test/clean: BRIEF_ARGS = clean (test)
+test/clean:
+	if test -d test; then $(MAKE) clean -C test; fi
+## Compiles and runs all test
+.PHONY: test
+test: $(BUILD_LIB)/libsodium.a
+test: build
+	$(MAKE) -C $@
+
+.PHONY: example/clean
+example/clean: BRIEF_ARGS = clean (example)
+example/clean:
+	if test -f example; then $(MAKE) clean -C example; fi
+
+## Compiles example
+.PHONY: example
+example: build
+	$(MAKE) -C $@
+
+## Installs library into system
+.PHONY: install
+install: $(BUILD_DIRECTORY)/lib/$(TARGET_STATIC)
+	$(CP) -fr build/include/* $(PREFIX)/include/
+	$(CP) -f $(BUILD_DIRECTORY)/lib/* $(PREFIX)/lib
+
+## Uninstalls library from system
+.PHONY: uninstall
+uninstall:
+	$(RM) -r $(PREFIX)/include/$(LIBRARY_NAME)
+	$(RM) $(PREFIX)/lib/$(TARGET_STATIC)
+	$(RM) $(PREFIX)/lib/$(TARGET_SOLIB)
+	$(RM) $(PREFIX)/lib/$(TARGET_DYLIB)
+	$(RM) $(PREFIX)/lib/$(TARGET_SO)
+
+tmp: tmp/
+tmp/:
+	$(MKDIR) $@
+
+$(BUILD_LIB)/libsodium.a: export TMP=$(CWD)/tmp
+$(BUILD_LIB)/libsodium.a: export PREFIX=$(BUILD_DIRECTORY)
+$(BUILD_LIB)/libsodium.a: tmp/
+	$(CLIB) install sodium --save-dev
+
