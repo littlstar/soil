@@ -1,6 +1,6 @@
 {
   "name": "SOIL",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repo": "littlstar/soil",
   "description": "Simple OpenGL Image Library",
   "keywords": ["soil", "opengl", "gl", "image"],
