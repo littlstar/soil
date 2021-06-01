@@ -48,7 +48,6 @@ declare -a COMMAND_DEPENDENCIES=(
   ar cc ln rm pwd date
   uname mkdir strip make
   pkg-config
-  clib
 )
 
 ## Optional user commands
