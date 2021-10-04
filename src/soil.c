@@ -1876,10 +1876,10 @@ int query_NPOT_capability( void )
 	if( has_NPOT_capability == SOIL_CAPABILITY_UNKNOWN )
 	{
 		/*	we haven't yet checked for the capability, do so	*/
-		if(
-			(NULL == strstr( (char const*)glGetString( GL_EXTENSIONS ),
-				"GL_ARB_texture_non_power_of_two" ) )
-			)
+		const char* glGetString_extentions_ptr = (char const*)glGetString(GL_EXTENSIONS);
+		if(glGetString_extentions_ptr != NULL 
+			&& NULL == strstr(glGetString_extentions_ptr,
+			"GL_ARB_texture_non_power_of_two"))
 		{
 			/*	not there, flag the failure	*/
 			has_NPOT_capability = SOIL_CAPABILITY_NONE;
