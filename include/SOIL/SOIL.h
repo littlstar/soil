@@ -40,6 +40,8 @@
 #ifndef HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY
 #define HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY
 
+#include "SOIL_defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

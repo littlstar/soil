@@ -13,8 +13,6 @@
 	* everybody at gamedev.net
 */
 
-#define SOIL_CHECK_FOR_GL_ERRORS 0
-
 #ifdef _WIN32
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
@@ -1877,7 +1875,7 @@ int query_NPOT_capability( void )
 	{
 		/*	we haven't yet checked for the capability, do so	*/
 		const char* glGetString_extentions_ptr = (char const*)glGetString(GL_EXTENSIONS);
-		if(glGetString_extentions_ptr != NULL 
+		if(glGetString_extentions_ptr != NULL
 			&& NULL == strstr(glGetString_extentions_ptr,
 			"GL_ARB_texture_non_power_of_two"))
 		{
