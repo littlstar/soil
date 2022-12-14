@@ -6,11 +6,13 @@ project(SOIL
 set(SOIL_VERSION ${PROJECT_VERSION})
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE
+        PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel"
+    )
 endif()
 if (NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "SOIL build type: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "SOIL build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
 if(NOT DEFINED SOIL_BUNDLED)
@@ -24,7 +26,11 @@ set(SOIL_BUNDLED ${SOIL_BUNDLED} CACHE BOOL "" FORCE)
 mark_as_advanced(SOIL_BUNDLED)
 
 include(CMakeDependentOption)
-CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library" OFF "NOT SOIL_BUNDLED" OFF)
+CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library"
+    OFF
+    "NOT SOIL_BUNDLED"
+    OFF
+)
 
 if(NOT SOIL_BUNDLED)
 	include(GNUInstallDirs)
@@ -38,53 +44,86 @@ endif()
 
 add_library(libsoil)
 add_library(${PROJECT_NAME}::libsoil ALIAS libsoil)
-
 set_target_properties(libsoil
-  PROPERTIES
-  SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-  VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-  )
+    PROPERTIES
+    OUTPUT_NAME soil
+)
+if(BUILD_SHARED_LIBS)
+    set_target_properties(libsoil
+        PROPERTIES
+        SOVERSION "${PROJECT_VERSION_MAJOR}"
+        VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+    )
+endif()
+
+
+set(SOIL_DATE_COMPILED)
+string(TIMESTAMP SOIL_DATE_COMPILED UTC)
+set(SOIL_VERSION_REVISION ${PROJECT_VERSION_TWEAK})
+if("${SOIL_VERSION_REVISION}" STREQUAL "")
+    set(SOIL_VERSION_REVISION 0)
+endif()
+set(SOIL_VERSION_COMBINED)
+math(EXPR SOIL_VERSION_COMBINED
+    "${PROJECT_VERSION_MAJOR} << 24 | \
+     ${PROJECT_VERSION_MINOR} << 16 | \
+     ${PROJECT_VERSION_PATCH} << 8 | \
+     ${SOIL_VERSION_REVISION}"
+    OUTPUT_FORMAT DECIMAL
+)
+target_compile_definitions(libsoil
+    PUBLIC
+    SOIL_NAME="$<TARGET_FILE_NAME:SOIL::libsoil>"
+    SOIL_DATE_COMPILED="${SOIL_DATE_COMPILED}"
+    SOIL_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    SOIL_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    SOIL_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+    SOIL_VERSION_REVISION=${PROJECT_VERSION_TWEAK}
+    SOIL_VERSION=${SOIL_VERSION_COMBINED}
+    SOIL_VERSION_STRING="${SOIL_VERSION}"
+)
+mark_as_advanced(SOIL_DATE_COMPILED SOIL_VERSION_COMBINED SOIL_VERSION_REVISION)
 
 target_include_directories(libsoil
 	PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/>
-	)
+)
 
 set(HEADERS
-  include/SOIL/SOIL.h
-  include/SOIL/image_dxt.h
-  include/SOIL/image_helper.h
-  include/SOIL/stb_image_aug.h
-  include/SOIL/stbi_dds_aug.h
-  include/SOIL/stbi_dds_aug_c.h
-	)
+    include/SOIL/SOIL.h
+    include/SOIL/image_dxt.h
+    include/SOIL/image_helper.h
+    include/SOIL/stb_image_aug.h
+    include/SOIL/stbi_dds_aug.h
+    include/SOIL/stbi_dds_aug_c.h
+)
 set(SOURCES
-  src/soil.c
-  src/image_dxt.c
-  src/image_helper.c
-  src/stb_image_aug.c
-  )
+    src/soil.c
+    src/image_dxt.c
+    src/image_helper.c
+    src/stb_image_aug.c
+)
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
 	PREFIX ""
-  FILES ${HEADERS} ${SOURCES}
-	)
+    FILES ${HEADERS} ${SOURCES}
+)
 
 target_sources(libsoil
-  PRIVATE
-  ${SOURCES}
-  ${HEADERS}
-  )
+    PRIVATE
+    ${SOURCES}
+    ${HEADERS}
+)
 
 if(NOT SOIL_BUNDLED)
-	install(TARGETS libsoil
-		EXPORT ${SOIL_TARGETS}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/
-		)
-	install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
-		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-		)
+    install(TARGETS libsoil
+        EXPORT ${SOIL_TARGETS}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/
+	)
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 endif()
 
 
@@ -101,7 +140,7 @@ if(NOT SOIL_BUNDLED)
 		ARCH_INDEPENDENT
 	)
 	configure_package_config_file(
-		${CMAKE_CURRENT_LIST_DIR}/CMake/SOILConfig.cmake.in
+		${CMAKE_CURRENT_LIST_DIR}/cmake/SOILConfig.cmake.in
 		${SOIL_PROJECT_CONFIG}
 		INSTALL_DESTINATION ${SOIL_CONFIG_INSTALL_DIR}
 	)
@@ -119,4 +158,3 @@ if(NOT SOIL_BUNDLED)
 		DESTINATION ${SOIL_CONFIG_INSTALL_DIR}
 	)
 endif()
-
