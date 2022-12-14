@@ -18,12 +18,15 @@ endif()
 if(NOT DEFINED SOIL_BUNDLED)
 	if("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
 		set(SOIL_BUNDLED FALSE)
+		set(SOIL_BUILD_DOCS TRUE)
 	else()
 		set(SOIL_BUNDLED TRUE)
+		set(SOIL_BUILD_DOCS FALSE)
 	endif()
 endif()
 set(SOIL_BUNDLED ${SOIL_BUNDLED} CACHE BOOL "" FORCE)
 mark_as_advanced(SOIL_BUNDLED)
+set(SOIL_BUILD_DOCS ${SOIL_BUILD_DOCS} CACHE BOOL "Generate Doxygen documentation" FORCE)
 
 include(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library"
@@ -31,6 +34,24 @@ CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library"
 	"NOT SOIL_BUNDLED"
 	OFF
 )
+
+add_library(libsoil)
+add_library(${PROJECT_NAME}::libsoil ALIAS libsoil)
+set_target_properties(libsoil
+	PROPERTIES
+	OUTPUT_NAME soil
+)
+if(BUILD_SHARED_LIBS)
+	set_target_properties(libsoil
+		PROPERTIES
+		SOVERSION "${PROJECT_VERSION_MAJOR}"
+		VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+	)
+endif()
+
+if (SOIL_BUILD_DOCS)
+	add_subdirectory(docs)
+endif()
 
 option(SOIL_CHECK_FOR_GL_ERRORS "Should SOIL check OpenGL errors or not" FALSE)
 
@@ -50,20 +71,6 @@ else()
 	option(SOIL_CUSTOM_GL_HEADERS
 		"Should SOIL use custom headers for OpenGL (i.e. from glad, SDL2, etc) or not"
 		FALSE
-	)
-endif()
-
-add_library(libsoil)
-add_library(${PROJECT_NAME}::libsoil ALIAS libsoil)
-set_target_properties(libsoil
-	PROPERTIES
-	OUTPUT_NAME soil
-)
-if(BUILD_SHARED_LIBS)
-	set_target_properties(libsoil
-		PROPERTIES
-		SOVERSION "${PROJECT_VERSION_MAJOR}"
-		VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
 	)
 endif()
 
