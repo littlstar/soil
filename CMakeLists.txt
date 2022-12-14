@@ -6,13 +6,13 @@ project(SOIL
 set(SOIL_VERSION ${PROJECT_VERSION})
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE
-        PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel"
-    )
+	set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+	set_property(CACHE CMAKE_BUILD_TYPE
+		PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel"
+	)
 endif()
 if (NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "SOIL build type: ${CMAKE_BUILD_TYPE}")
+	message(STATUS "SOIL build type: ${CMAKE_BUILD_TYPE}")
 endif()
 
 if(NOT DEFINED SOIL_BUNDLED)
@@ -27,123 +27,185 @@ mark_as_advanced(SOIL_BUNDLED)
 
 include(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library"
-    OFF
-    "NOT SOIL_BUNDLED"
-    OFF
+	OFF
+	"NOT SOIL_BUNDLED"
+	OFF
 )
+
+option(SOIL_CHECK_FOR_GL_ERRORS "Should SOIL check OpenGL errors or not" FALSE)
 
 if(NOT SOIL_BUNDLED)
 	include(GNUInstallDirs)
 	set(SOIL_TARGETS "SOILTargets")
-	set(SOIL_BUILD_TEST_APP_DEFAULT TRUE)
-	set(SOIL_BUILD_BENCHMARKS_DEFAULT FALSE)
 else()
-	set(SOIL_BUILD_TEST_APP_DEFAULT FALSE)
-	set(SOIL_BUILD_BENCHMARKS_DEFAULT FALSE)
+	set(SOIL_GL_LINK_LIBRARIES "${SOIL_GL_LINK_LIBRARIES}" CACHE
+		STRING "If not empty SOIL will be linked against given libraries (i.g. glad, SDL2, etc.)"
+		FORCE
+	)
+	set(SOIL_GL_INCLUDE_DIRECTORIES "${SOIL_GL_INCLUDE_DIRECTORIES}" CACHE
+		STRING "If not empty SOIL will search for headers within given directories"
+		FORCE
+	)
+
+	option(SOIL_CUSTOM_GL_HEADERS
+		"Should SOIL use custom headers for OpenGL (i.e. from glad, SDL2, etc) or not"
+		FALSE
+	)
 endif()
 
 add_library(libsoil)
 add_library(${PROJECT_NAME}::libsoil ALIAS libsoil)
 set_target_properties(libsoil
-    PROPERTIES
-    OUTPUT_NAME soil
+	PROPERTIES
+	OUTPUT_NAME soil
 )
 if(BUILD_SHARED_LIBS)
-    set_target_properties(libsoil
-        PROPERTIES
-        SOVERSION "${PROJECT_VERSION_MAJOR}"
-        VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-    )
+	set_target_properties(libsoil
+		PROPERTIES
+		SOVERSION "${PROJECT_VERSION_MAJOR}"
+		VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+	)
 endif()
 
-# configure SOIL_defs.h {{
-option(SOIL_CHECK_FOR_GL_ERRORS "Should SOIL check OpenGL errors or not" FALSE)
+# configure SOIL_defs.h, SOIL_GL.h {{
 set(SOIL_CHECK_FOR_GL_ERRORS_DEFINE 0)
-if (SOIL_CHECK_FOR_GL_ERRORS)
-    set(SOIL_CHECK_FOR_GL_ERRORS_DEFINE 1)
+if(SOIL_CHECK_FOR_GL_ERRORS)
+	set(SOIL_CHECK_FOR_GL_ERRORS_DEFINE 1)
+endif()
+set(SOIL_CUSTOM_GL_HEADERS_DEFINE 0)
+if(SOIL_BUNDLED AND SOIL_CUSTOM_GL_HEADERS)
+	set(SOIL_CUSTOM_GL_HEADERS_DEFINE 1)
 endif()
 
 get_target_property(SOIL_NAME SOIL::libsoil OUTPUT_NAME)
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    set(SOIL_NAME "lib${SOIL_NAME}")
+	set(SOIL_NAME "lib${SOIL_NAME}")
 endif()
 set(SOIL_LINKAGE "static")
 if(BUILD_SHARED_LIBS)
-    set(SOIL_LINKAGE "shared")
+	set(SOIL_LINKAGE "shared")
 endif()
 set(SOIL_DATE_COMPILED)
 string(TIMESTAMP SOIL_DATE_COMPILED UTC)
 set(SOIL_VERSION_REVISION ${PROJECT_VERSION_TWEAK})
-if("${SOIL_VERSION_REVISION}" STREQUAL "")
-    set(SOIL_VERSION_REVISION 0)
+if(NOT DEFINED SOIL_VERSION_REVISION)
+	set(SOIL_VERSION_REVISION 0)
 endif()
 set(SOIL_VERSION_COMBINED)
 math(EXPR SOIL_VERSION_COMBINED
-    "${PROJECT_VERSION_MAJOR} << 24 | \
-     ${PROJECT_VERSION_MINOR} << 16 | \
-     ${PROJECT_VERSION_PATCH} << 8 | \
-     ${SOIL_VERSION_REVISION}"
-    OUTPUT_FORMAT DECIMAL
+	"${PROJECT_VERSION_MAJOR} << 24 | \
+	 ${PROJECT_VERSION_MINOR} << 16 | \
+	 ${PROJECT_VERSION_PATCH} << 8 | \
+	 ${SOIL_VERSION_REVISION}"
+	OUTPUT_FORMAT DECIMAL
 )
 mark_as_advanced(
-  SOIL_CHECK_FOR_GL_ERRORS_DEFINE
-  SOIL_NAME
-  SOIL_LINKAGE
-  SOIL_DATE_COMPILED
-  SOIL_VERSION_REVISION
-  SOIL_VERSION_COMBINED
+	SOIL_CHECK_FOR_GL_ERRORS_DEFINE
+	SOIL_CUSTOM_GL_HEADERS_DEFINE
+	SOIL_NAME
+	SOIL_LINKAGE
+	SOIL_DATE_COMPILED
+	SOIL_VERSION_REVISION
+	SOIL_VERSION_COMBINED
 )
+
 configure_file(
-    "${CMAKE_CURRENT_LIST_DIR}/cmake/SOIL_defs.h.in"
-    "${PROJECT_BINARY_DIR}/include/SOIL_defs.h"
-    NEWLINE_STYLE UNIX
+	"${CMAKE_CURRENT_LIST_DIR}/cmake/SOIL_defs.h.in"
+	"${PROJECT_BINARY_DIR}/include/SOIL/SOIL_defs.h"
+	NEWLINE_STYLE UNIX
+)
+
+if(SOIL_BUNDLED AND SOIL_CUSTOM_GL_HEADERS)
+	if(NOT DEFINED SOIL_CUSTOM_GL_HEADERS_DEFS)
+		message(WARNING
+			"SOIL_CUSTOM_GL_HEADERS option is set but SOIL_CUSTOM_GL_HEADERS_DEFS is empty; Using default SOIL_CUSTOM_GL_HEADERS_DEFS value for glad and SDL2"
+		)
+		if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
+			set(SOIL_CUSTOM_GL_HEADERS_DEFS
+				"
+#include <glad/gles2.h>
+#include <SDL/SDL_opengles2.h>
+"
+			)
+		else()
+			set(SOIL_CUSTOM_GL_HEADERS_DEFS
+				"
+#include <glad/gl.h>
+#include <SDL/SDL_opengl.h>
+"
+			)
+		endif()
+	endif()
+	set(SOIL_CUSTOM_GL_HEADERS_DEFS "${SOIL_CUSTOM_GL_HEADERS_DEFS}" CACHE STRING "Custom OpenGL headers includes (i.g. #include <glad/gl.g>\n#include <SDL/SDL_opengl.h>)")
+endif()
+
+configure_file(
+	"${CMAKE_CURRENT_LIST_DIR}/cmake/SOIL_GL.h.in"
+	"${PROJECT_BINARY_DIR}/include/SOIL/SOIL_GL.h"
+	NEWLINE_STYLE UNIX
 )
 # }}
 
 target_include_directories(libsoil
 	PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/>
-    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include/>
+	$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include/>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/>
 )
 
+if(SOIL_BUNDLED)
+	if(DEFINED SOIL_GL_LINK_LIBRARIES)
+		target_link_libraries(libsoil
+			${SOIL_GL_LINK_LIBRARIES}
+		)
+		if(NOT DEFINED SOIL_GL_INCLUDE_DIRECTORIES)
+			message(WARNING "SOIL_GL_LINK_LIBRARIES is defined but SOIL_GL_INCLUDE_DIRECTORIES is not")
+		endif()
+	endif()
+	if(DEFINED SOIL_GL_INCLUDE_DIRECTORIES)
+		target_include_directories(libsoil
+			${SOIL_GL_INCLUDE_DIRECTORIES}
+		)
+	endif()
+endif()
+
 set(HEADERS
-    include/SOIL/SOIL.h
-    include/SOIL/image_dxt.h
-    include/SOIL/image_helper.h
-    include/SOIL/stb_image_aug.h
-    include/SOIL/stbi_dds_aug.h
-    include/SOIL/stbi_dds_aug_c.h
+	include/SOIL/SOIL.h
+	include/SOIL/image_dxt.h
+	include/SOIL/image_helper.h
+	include/SOIL/stb_image_aug.h
+	include/SOIL/stbi_dds_aug.h
+	include/SOIL/stbi_dds_aug_c.h
 )
 set(SOURCES
-    src/soil.c
-    src/image_dxt.c
-    src/image_helper.c
-    src/stb_image_aug.c
+	src/soil.c
+	src/image_dxt.c
+	src/image_helper.c
+	src/stb_image_aug.c
 )
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR}
 	PREFIX ""
-    FILES ${HEADERS} ${SOURCES}
+	FILES ${HEADERS} ${SOURCES}
 )
 
 target_sources(libsoil
-    PRIVATE
-    ${SOURCES}
-    ${HEADERS}
+	PRIVATE
+	${SOURCES}
+	${HEADERS}
 )
 
 if(NOT SOIL_BUNDLED)
-    install(TARGETS libsoil
-        EXPORT ${SOIL_TARGETS}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/
+	install(TARGETS libsoil
+		EXPORT ${SOIL_TARGETS}
+		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/
+		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/
 	)
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
-    install(DIRECTORY ${PROJECT_BINARY_DIR}/include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    )
+	install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+	)
+	install(DIRECTORY ${PROJECT_BINARY_DIR}/include/
+		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+	)
 
 	include(CMakePackageConfigHelpers)
 	set(SOIL_VERSION_CONFIG ${PROJECT_BINARY_DIR}/SOILConfigVersion.cmake)

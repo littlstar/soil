@@ -13,25 +13,12 @@
 	* everybody at gamedev.net
 */
 
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-	#include <wingdi.h>
-	#include <GL/gl.h>
-#elif defined(__APPLE__) || defined(__APPLE_CC__)
-	/*	I can't test this Apple stuff!	*/
-	#include <OpenGL/gl.h>
-	#include <Carbon/Carbon.h>
-	#define APIENTRY
-#else
-	#include <GL/gl.h>
-	#include <GL/glx.h>
-#endif
+#include <SOIL/SOIL_GL.h>
 
-#include "SOIL/SOIL.h"
-#include "SOIL/stb_image_aug.h"
-#include "SOIL/image_helper.h"
-#include "SOIL/image_dxt.h"
+#include <SOIL/SOIL.h>
+#include <SOIL/stb_image_aug.h>
+#include <SOIL/image_helper.h>
+#include <SOIL/image_dxt.h>
 
 #include <stdlib.h>
 #include <string.h>
