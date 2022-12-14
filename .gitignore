@@ -64,3 +64,6 @@ install_manifest.txt
 build/
 
 /.vs
+
+docs/html/
+
