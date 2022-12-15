@@ -18,3 +18,10 @@ add_custom_command(OUTPUT ${SOIL_DOCS_ARTIFACT}
 add_custom_target(docs ALL DEPENDS ${SOIL_DOCS_ARTIFACT})
 
 list(APPEND ADDITIONAL_CLEAN_FILES "${PROJECT_BINARY_DIR}/docs/html/")
+
+if(NOT SOIL_BUNDLED)
+	install(
+		DIRECTORY "${PROJECT_BINARY_DIR}/docs/html"
+		DESTINATION "${CMAKE_INSTALL_DATADIR}/SOIL/docs"
+	)
+endif()

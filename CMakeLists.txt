@@ -24,7 +24,7 @@ if(NOT DEFINED SOIL_BUNDLED)
 		set(SOIL_BUILD_DOCS FALSE)
 	endif()
 endif()
-set(SOIL_BUNDLED ${SOIL_BUNDLED} CACHE BOOL "" FORCE)
+#set(SOIL_BUNDLED ${SOIL_BUNDLED} CACHE BOOL "" FORCE)
 mark_as_advanced(SOIL_BUNDLED)
 set(SOIL_BUILD_DOCS ${SOIL_BUILD_DOCS} CACHE BOOL "Generate Doxygen documentation" FORCE)
 
@@ -34,6 +34,11 @@ CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build SOIL as shared library"
 	"NOT SOIL_BUNDLED"
 	OFF
 )
+
+if(NOT SOIL_BUNDLED)
+	include(GNUInstallDirs)
+	set(SOIL_TARGETS "SOILTargets")
+endif()
 
 add_library(libsoil)
 add_library(${PROJECT_NAME}::libsoil ALIAS libsoil)
@@ -55,10 +60,7 @@ endif()
 
 option(SOIL_CHECK_FOR_GL_ERRORS "Should SOIL check OpenGL errors or not" FALSE)
 
-if(NOT SOIL_BUNDLED)
-	include(GNUInstallDirs)
-	set(SOIL_TARGETS "SOILTargets")
-else()
+if(SOIL_BUNDLED)
 	set(SOIL_GL_LINK_LIBRARIES "${SOIL_GL_LINK_LIBRARIES}" CACHE
 		STRING "If not empty SOIL will be linked against given libraries (i.g. glad, SDL2, etc.)"
 		FORCE
@@ -242,5 +244,9 @@ if(NOT SOIL_BUNDLED)
 	install(
 		FILES ${SOIL_PROJECT_CONFIG} ${SOIL_VERSION_CONFIG}
 		DESTINATION ${SOIL_CONFIG_INSTALL_DIR}
+	)
+	install(
+		FILES README.md LICENSE.txt
+		DESTINATION "${CMAKE_INSTALL_DATADIR}/SOIL"
 	)
 endif()
