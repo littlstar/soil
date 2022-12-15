@@ -1,0 +1,33 @@
+/**
+	\file
+**/
+
+#ifndef HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_GL
+#define HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_GL
+
+#include "SOIL_defs.h"
+
+#if SOIL_CUSTOM_GL_HEADERS
+
+@SOIL_CUSTOM_GL_HEADERS_DEFS@
+
+#else
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <wingdi.h>
+#include <GL/gl.h>
+#elif defined(__APPLE__) || defined(__APPLE_CC__)
+/*	I can't test this Apple stuff!	*/
+#include <OpenGL/gl.h>
+#include <Carbon/Carbon.h>
+#define APIENTRY
+#else
+#include <GL/gl.h>
+#include <GL/glx.h>
+#endif
+
+#endif /* SOIL_CUSTOM_GL_HEADERS */
+
+#endif /* HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_GL */

@@ -1,4 +1,9 @@
 /**
+	\file SOIL/SOIL.h
+	The SOIL API
+**/
+
+/**
 	@mainpage SOIL
 
 	Jonathan Dummer
@@ -40,19 +45,22 @@
 #ifndef HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY
 #define HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY
 
+#include "SOIL/SOIL_defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
-	The format of images that may be loaded (force_channels).
+	\brief The format of images that may be loaded (force_channels).
+
 	SOIL_LOAD_AUTO leaves the image in whatever format it was found.
 	SOIL_LOAD_L forces the image to load as Luminous (greyscale)
 	SOIL_LOAD_LA forces the image to load as Luminous with Alpha
 	SOIL_LOAD_RGB forces the image to load as Red Green Blue
 	SOIL_LOAD_RGBA forces the image to load as Red Green Blue Alpha
 **/
-enum
+enum SOIL_load_format
 {
 	SOIL_LOAD_AUTO = 0,
 	SOIL_LOAD_L = 1,
@@ -62,19 +70,21 @@ enum
 };
 
 /**
+	\brief reuse_texture_ID for new texture creating.
+
 	Passed in as reuse_texture_ID, will cause SOIL to
 	register a new texture ID using glGenTextures().
 	If the value passed into reuse_texture_ID > 0 then
 	SOIL will just re-use that texture ID (great for
 	reloading image assets in-game!)
 **/
-enum
+enum SOIL_reuse_texture_id
 {
 	SOIL_CREATE_NEW_ID = 0
 };
 
 /**
-	flags you can pass into SOIL_load_OGL_texture()
+	\brief flags you can pass into SOIL_load_OGL_texture()
 	and SOIL_create_OGL_texture().
 	(note that if SOIL_FLAG_DDS_LOAD_DIRECT is used
 	the rest of the flags with the exception of
@@ -92,7 +102,7 @@ enum
 	SOIL_FLAG_CoCg_Y: Google YCoCg; RGB=>CoYCg, RGBA=>CoCgAY
 	SOIL_FLAG_TEXTURE_RECTANGE: uses ARB_texture_rectangle ; pixel indexed & no repeat or MIPmaps or cubemaps
 **/
-enum
+enum SOIL_load_flag
 {
 	SOIL_FLAG_POWER_OF_TWO = 1,
 	SOIL_FLAG_MIPMAPS = 2,
@@ -107,12 +117,13 @@ enum
 };
 
 /**
-	The types of images that may be saved.
+	\brief The types of images that may be saved.
+
 	(TGA supports uncompressed RGB / RGBA)
 	(BMP supports uncompressed RGB)
 	(DDS supports DXT1 and DXT5)
 **/
-enum
+enum SOIL_save_image_type
 {
 	SOIL_SAVE_TYPE_TGA = 0,
 	SOIL_SAVE_TYPE_BMP = 1,
@@ -120,7 +131,8 @@ enum
 };
 
 /**
-	Defines the order of faces in a DDS cubemap.
+	\brief Defines the order of faces in a DDS cubemap.
+
 	I recommend that you use the same order in single
 	image cubemap files, so they will be interchangeable
 	with DDS cubemaps when using SOIL.
@@ -128,13 +140,13 @@ enum
 #define SOIL_DDS_CUBEMAP_FACE_ORDER "EWUDNS"
 
 /**
-	The types of internal fake HDR representations
+	\brief The types of internal fake HDR representations.
 
 	SOIL_HDR_RGBE:		RGB * pow( 2.0, A - 128.0 )
 	SOIL_HDR_RGBdivA:	RGB / A
 	SOIL_HDR_RGBdivA2:	RGB / (A*A)
 **/
-enum
+enum SOIL_HDR_type
 {
 	SOIL_HDR_RGBE = 0,
 	SOIL_HDR_RGBdivA = 1,
@@ -142,7 +154,8 @@ enum
 };
 
 /**
-	Loads an image from disk into an OpenGL texture.
+	\brief Loads an image from disk into an OpenGL texture.
+
 	\param filename the name of the file to upload as a texture
 	\param force_channels 0-image format, 1-luminous, 2-luminous/alpha, 3-RGB, 4-RGBA
 	\param reuse_texture_ID 0-generate a new texture ID, otherwise reuse the texture ID (overwriting the old texture)
@@ -159,7 +172,8 @@ unsigned int
 	);
 
 /**
-	Loads 6 images from disk into an OpenGL cubemap texture.
+	\brief Loads 6 images from disk into an OpenGL cubemap texture.
+
 	\param x_pos_file the name of the file to upload as the +x cube face
 	\param x_neg_file the name of the file to upload as the -x cube face
 	\param y_pos_file the name of the file to upload as the +y cube face
@@ -186,7 +200,8 @@ unsigned int
 	);
 
 /**
-	Loads 1 image from disk and splits it into an OpenGL cubemap texture.
+	\brief Loads 1 image from disk and splits it into an OpenGL cubemap texture.
+
 	\param filename the name of the file to upload as a texture
 	\param face_order the order of the faces in the file, any combination of NSWEUD, for North, South, Up, etc.
 	\param force_channels 0-image format, 1-luminous, 2-luminous/alpha, 3-RGB, 4-RGBA
@@ -205,7 +220,8 @@ unsigned int
 	);
 
 /**
-	Loads an HDR image from disk into an OpenGL texture.
+	\brief Loads an HDR image from disk into an OpenGL texture.
+
 	\param filename the name of the file to upload as a texture
 	\param fake_HDR_format SOIL_HDR_RGBE, SOIL_HDR_RGBdivA, SOIL_HDR_RGBdivA2
 	\param reuse_texture_ID 0-generate a new texture ID, otherwise reuse the texture ID (overwriting the old texture)
@@ -223,7 +239,8 @@ unsigned int
 	);
 
 /**
-	Loads an image from RAM into an OpenGL texture.
+	\brief Loads an image from RAM into an OpenGL texture.
+
 	\param buffer the image data in RAM just as if it were still in a file
 	\param buffer_length the size of the buffer in bytes
 	\param force_channels 0-image format, 1-luminous, 2-luminous/alpha, 3-RGB, 4-RGBA
@@ -242,7 +259,8 @@ unsigned int
 	);
 
 /**
-	Loads 6 images from memory into an OpenGL cubemap texture.
+	\brief Loads 6 images from memory into an OpenGL cubemap texture.
+
 	\param x_pos_buffer the image data in RAM to upload as the +x cube face
 	\param x_pos_buffer_length the size of the above buffer
 	\param x_neg_buffer the image data in RAM to upload as the +x cube face
@@ -281,7 +299,8 @@ unsigned int
 	);
 
 /**
-	Loads 1 image from RAM and splits it into an OpenGL cubemap texture.
+	\brief Loads 1 image from RAM and splits it into an OpenGL cubemap texture.
+
 	\param buffer the image data in RAM just as if it were still in a file
 	\param buffer_length the size of the buffer in bytes
 	\param face_order the order of the faces in the file, any combination of NSWEUD, for North, South, Up, etc.
@@ -302,8 +321,9 @@ unsigned int
 	);
 
 /**
-	Creates a 2D OpenGL texture from raw image data.  Note that the raw data is
-	_NOT_ freed after the upload (so the user can load various versions).
+	\brief Creates a 2D OpenGL texture from raw image data.
+
+	Note that the raw data is _NOT_ freed after the upload (so the user can load various versions).
 	\param data the raw data to be uploaded as an OpenGL texture
 	\param width the width of the image in pixels
 	\param height the height of the image in pixels
@@ -322,7 +342,8 @@ unsigned int
 	);
 
 /**
-	Creates an OpenGL cubemap texture by splitting up 1 image into 6 parts.
+	\brief Creates an OpenGL cubemap texture by splitting up 1 image into 6 parts.
+
 	\param data the raw data to be uploaded as an OpenGL texture
 	\param width the width of the image in pixels
 	\param height the height of the image in pixels
@@ -343,7 +364,8 @@ unsigned int
 	);
 
 /**
-	Captures the OpenGL window (RGB) and saves it to disk
+	\brief Captures the OpenGL window (RGB) and saves it to disk.
+
 	\return 0 if it failed, otherwise returns 1
 **/
 int
@@ -356,7 +378,8 @@ int
 	);
 
 /**
-	Loads an image from disk into an array of unsigned chars.
+	\brief Loads an image from disk into an array of unsigned chars.
+
 	Note that *channels return the original channel count of the
 	image.  If force_channels was other than SOIL_LOAD_AUTO,
 	the resulting image has force_channels, but *channels may be
@@ -373,7 +396,8 @@ unsigned char*
 	);
 
 /**
-	Loads an image from memory into an array of unsigned chars.
+	\brief Loads an image from memory into an array of unsigned chars.
+
 	Note that *channels return the original channel count of the
 	image.  If force_channels was other than SOIL_LOAD_AUTO,
 	the resulting image has force_channels, but *channels may be
@@ -391,7 +415,8 @@ unsigned char*
 	);
 
 /**
-	Saves an image from an array of unsigned chars (RGBA) to disk
+	\brief Saves an image from an array of unsigned chars (RGBA) to disk.
+
 	\return 0 if failed, otherwise returns 1
 **/
 int
@@ -404,7 +429,9 @@ int
 	);
 
 /**
-	Frees the image data (note, this is just C's "free()"...this function is
+	\brief Frees the image data.
+
+	Note, this is just C's "free()"...this function is
 	present mostly so C++ programmers don't forget to use "free()" and call
 	"delete []" instead [8^)
 **/
@@ -415,8 +442,10 @@ void
 	);
 
 /**
-	This function resturn a pointer to a string describing the last thing
-	that happened inside SOIL.  It can be used to determine why an image
+	\brief This function resturn a pointer to a string describing the last thing
+	that happened inside SOIL.
+
+	It can be used to determine why an image
 	failed to load.
 **/
 const char*

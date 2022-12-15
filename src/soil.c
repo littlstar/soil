@@ -13,27 +13,12 @@
 	* everybody at gamedev.net
 */
 
-#define SOIL_CHECK_FOR_GL_ERRORS 0
+#include <SOIL/SOIL_GL.h>
 
-#ifdef _WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>
-	#include <wingdi.h>
-	#include <GL/gl.h>
-#elif defined(__APPLE__) || defined(__APPLE_CC__)
-	/*	I can't test this Apple stuff!	*/
-	#include <OpenGL/gl.h>
-	#include <Carbon/Carbon.h>
-	#define APIENTRY
-#else
-	#include <GL/gl.h>
-	#include <GL/glx.h>
-#endif
-
-#include "SOIL/SOIL.h"
-#include "SOIL/stb_image_aug.h"
-#include "SOIL/image_helper.h"
-#include "SOIL/image_dxt.h"
+#include <SOIL/SOIL.h>
+#include <SOIL/stb_image_aug.h>
+#include <SOIL/image_helper.h>
+#include <SOIL/image_dxt.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -1877,7 +1862,7 @@ int query_NPOT_capability( void )
 	{
 		/*	we haven't yet checked for the capability, do so	*/
 		const char* glGetString_extentions_ptr = (char const*)glGetString(GL_EXTENSIONS);
-		if(glGetString_extentions_ptr != NULL 
+		if(glGetString_extentions_ptr != NULL
 			&& NULL == strstr(glGetString_extentions_ptr,
 			"GL_ARB_texture_non_power_of_two"))
 		{

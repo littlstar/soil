@@ -1,0 +1,65 @@
+/**
+	\file
+**/
+
+#ifndef HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_DEFS
+#define HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_DEFS
+
+/**
+	\brief Name of compiled SOIL library
+**/
+#define SOIL_NAME "@SOIL_NAME@"
+
+/**
+	\brief Compiled library linkage: "static" or "shared"
+**/
+#define SOIL_LINKAGE "@SOIL_LINKAGE@"
+
+/**
+	\brief Compiled library timestamp
+**/
+#define SOIL_DATE_COMPILED "@SOIL_DATE_COMPILED@"
+
+/**
+	\brief Full SOIL version as "major.minor.path"
+**/
+#define SOIL_VERSION_STRING "@PROJECT_VERSION@"
+
+/**
+	\brief SOIL major version
+**/
+#define SOIL_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+
+/**
+	\brief SOIL minor version
+**/
+#define SOIL_VERSION_MINOR @PROJECT_VERSION_MINOR@
+
+/**
+	\brief SOIL patch version
+**/
+#define SOIL_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+/**
+	\brief SOIL revision version (I don't really understand it. S.D.)
+**/
+#define SOIL_VERSION_REVISION @SOIL_VERSION_REVISION@
+
+/**
+	\brief Full SOIL version as number (major << 24 | minor << 16 | patch << 8 | revision)
+**/
+#define SOIL_VERSION @SOIL_VERSION_COMBINED@
+
+
+/**
+	\brief Defines should SOIL include custom OpenGL headers or not (normally not)
+**/
+#define SOIL_CUSTOM_GL_HEADERS @SOIL_CUSTOM_GL_HEADERS_DEFINE@
+
+
+/**
+	\brief Defines should SOIL check for OpenGL errors or not
+**/
+#define SOIL_CHECK_FOR_GL_ERRORS @SOIL_CHECK_FOR_GL_ERRORS_DEFINE@
+
+#endif /* HEADER_SIMPLE_OPENGL_IMAGE_LIBRARY_DEFS */
