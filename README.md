@@ -21,8 +21,9 @@ $ clib install littlstar/soil --save
 From source:
 
 ```sh
+$ ./configure
 $ make
-$ make install
+$ sudo make install
 ```
 
 ## Usage
